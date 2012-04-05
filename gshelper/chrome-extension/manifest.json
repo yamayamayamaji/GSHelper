@@ -1,0 +1,19 @@
+{
+  "name": "GSHelper",
+  "version": "0.1.1.0",
+  "description": "UI helper for GroupSession",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://www.gs.sjts.co.jp/gsession/*",
+        "https://www.gs.sjts.co.jp/gsession/*"
+      ],
+      "js": ["jquery.js", "content.js"],
+      "all_frames": true
+    }
+  ],
+  "permissions": [
+    "http://www.gs.sjts.co.jp/gsession/*",
+    "https://www.gs.sjts.co.jp/gsession/*"
+  ]
+}

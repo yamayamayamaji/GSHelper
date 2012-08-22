@@ -1,0 +1,19 @@
+{
+  "name": "GSHelper",
+  "version": "0.2.0.0",
+  "description": "UI helper for GroupSession",
+  "content_scripts": [ {
+      "all_frames": true,
+      "matches": [
+        "*://*/gsession/*",
+        "*://*/gsession3/*"
+      ],
+      "js": ["jquery.js", "content.js"]
+  } ],
+  "manifest_version": 2,
+  "permissions": [
+    "*://*/gsession/*",
+    "*://*/gsession3/*"
+  ],
+  "web_accessible_resources": ["manifest.json"]
+}

@@ -1,6 +1,6 @@
 {
   "name": "GSHelper",
-  "version": "0.2.0.0",
+  "version": "0.2.0.1",
   "description": "UI helper for GroupSession",
   "content_scripts": [ {
       "all_frames": true,

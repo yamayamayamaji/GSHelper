@@ -10,7 +10,8 @@
 
 1. http://goo.gl/IXep5 で gshelper.crx をダウンロード  
 
-2. gshelper.crx をchromeにドラッグ&ドロップしてインストール  
+2. chromeで拡張機能ページ( chrome://chrome/extensions/ )を開き  
+gshelper.crx をドラッグ&ドロップしてインストール  
   
   
   

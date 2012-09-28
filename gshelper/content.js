@@ -13,6 +13,9 @@ $CS = {
 	}
 };
 
+/**
+ * @const
+ */
 STORE_KEY = {
 	PREV_VERSION: 'gsh.prev_version',
 	VERSION_CONFIRMED: 'gsh.version_confirmed',
@@ -52,9 +55,6 @@ GSHelper = {
 			if (locPath.match('/schedule/sch093.do')) {
 				this.sch093.init();
 			}
-			if (locPath.match('/common/cmn999.do')) {
-				this.cmn999.init();
-			}
 			if (locPath.match('/file/fil040.do')) {
 				this.fil040.init();
 			}
@@ -63,6 +63,12 @@ GSHelper = {
 			}
 			if (locPath.match('/file/fil120kn.do')) {
 				this.fil120kn.init();
+			}
+			if (locPath.match('/smail/sml020.do')) {
+				this.sml020.init();
+			}
+			if (locPath.match('/common/cmn999.do')) {
+				this.cmn999.init();
 			}
 		}
 		return this;
@@ -113,7 +119,7 @@ GSHelper = {
 		},
 		//更新されたのを通知
 		notifyUpdate: function(){
-			var txt = 'DcomGSHelper was upgraded to ' + this.curVer + ' (from ' + this.prevVer + ')... ';
+			var txt = 'GSHelper was upgraded to ' + this.curVer + ' (from ' + this.prevVer + ')... ';
 			var path = chrome.extension.getURL('/release_notes.html');
 			var anc = $('<a href="#" onclick="window.open(\'' + path + '\')">show details</a>').addClass('sc_ttl_sat');
 			$('<div>').text(txt).append(anc)
@@ -335,26 +341,35 @@ GSHelper = {
 				selProp: '$defPWeekMbr',
 				label: '個人週間：'
 			}];
+
 			$.each(params, $.proxy(function(i, p){
-				var mbrId = this[p.selProp] ? this[p.selProp].val() : null;
+				var selbox = this[p.selProp],
+					labelCss = {width: '80px', display: 'inline-block', textAlign: 'right', paddingRight: '5px'},
+					loadingOpt = '<option>読み込み中...</option>',
+					mbrId = null;
+				//selectboxが存在しない場合(初期読込時)
+				if (!selbox) {
+					//空のselectboxを設置
+					this[p.selProp] = selbox = $('<select id="' + p.selName +'" disabled>' + loadingOpt + '</select>');
+					$('<div>').appendTo(this.$mbrContainer).append(selbox);
+					//ラベルも作る
+					var label = $('<span>').text(p.label).addClass('text_bb1')
+								.css(labelCss);
+					selbox.before(label);
+				} else {
+					//selectboxが存在する場合は中身を一旦空にする
+					selbox.prop('disabled', true)
+						.find('option').remove().end().append(loadingOpt);
+					mbrId = selbox.val();
+				}
+
 				$.post('../schedule/' + p.url, $.extend({ sch010DspGpSid: gpId }, p.opt), $.proxy(function(res){
-					var defVal = GSHelper.getOrgSettingDefVal(p.key, mbrId);
-
-					var sel = $(res).find('select[name=' + p.selName + ']')
-								.removeAttr('onchange').unbind().val(defVal);
-
-					//selectboxが存在する場合は中身だけ入れ替え(初回以外)
-					if (this[p.selProp]) {
-						this[p.selProp].find('option').remove().end()
-							.append(sel.find('option'));
-					//selectboxが存在しない場合はラベルも作る(初回)
-					} else {
-						this[p.selProp] = sel;
-						$('<div>').appendTo(this.$mbrContainer).append(sel);
-						var label = $('<span>').text(p.label).addClass('text_bb1')
-									.css({width: '80px', display: 'inline-block', textAlign: 'right', paddingRight: '5px'});
-						sel.before(label).after('<br>');
-					}
+					var defVal = GSHelper.getOrgSettingDefVal(p.key, mbrId),
+						resSel = $(res).find('select[name=' + p.selName + ']')
+									.removeAttr('onchange').unbind().val(defVal);
+					//取得した内容にselectboxの中身を入れ替え
+					selbox.find('option').remove().end()
+						.append(resSel.find('option')).prop('disabled', false);
 				}, this));
 			}, this));
 		}
@@ -493,6 +508,46 @@ GSHelper = {
 	},
 
 	/**
+	 * file/fil120kn.do管理オブジェクト
+	 */
+	fil120kn: {
+		//初期化
+		init: function(){
+			GSHelper.showOrgSettingConf();
+		}
+	},
+
+	/**
+	 * smail/sml020.do管理オブジェクト
+	 * (ショートメール 新規作成(返信)画面)
+	 */
+	sml020: {
+		//初期化
+		init: function(){
+			this.shortenReplyTitle();
+		},
+		//返信時の件名を短くする(Re:Re:Re:・・・となるのをRe3:等にする)
+		shortenReplyTitle: function(){
+			var $title = $('input[name=sml020Title]'),
+				text = $title.val(),
+				rePart, mainPart, count = 0, re;
+
+			text.match(/^((?:Re\d*[：:])+)(.*)$/ig);
+			//件名の頭のRe:・・・部分
+			rePart = RegExp.$1;
+			//件名のRe:・・・以降の部分
+			mainPart = RegExp.$2;
+			//Re:・・・部分を大文字に変換して:で分割
+			rePart = rePart.toUpperCase().split(/[:：]/);
+			//Reを数える
+			for (i = 0; re = rePart[i++];) {
+				count += (re == 'RE') ? 1 : Number(re.replace(/.+(\d)+/, '$1'))
+			}
+			$title.val('Re' + count + ':' + mainPart);
+		}
+	},
+
+	/**
 	 * common/cmn999.do管理オブジェクト
 	 * (登録/更新 確認画面)
 	 */
@@ -512,16 +567,6 @@ GSHelper = {
 					sessionStorage.removeItem(STORE_KEY.SETTING_CONF);
 				}
 			});
-		}
-	},
-
-	/**
-	 * file/fil120kn.do管理オブジェクト
-	 */
-	fil120kn: {
-		//初期化
-		init: function(){
-			GSHelper.showOrgSettingConf();
 		}
 	},
 

@@ -526,24 +526,26 @@ GSHelper = {
 		init: function(){
 			this.shortenReplyTitle();
 		},
-		//返信時の件名を短くする(Re:Re:Re:・・・となるのをRe3:等にする)
+		//返信時の件名を短くする(Re:Re:Re:…となるのをRe3:等にする)
 		shortenReplyTitle: function(){
 			var $title = $('input[name=sml020Title]'),
-				text = $title.val(),
-				rePart, mainPart, count = 0, re;
+				titleText = $title.val(),
+				rePart, mainPart, count = 0, reAry, re;
 
-			text.match(/^((?:Re\d*[：:])+)(.*)$/ig);
-			//件名の頭のRe:・・・部分
+			titleText.match(/^((?:Re\d*[：:])+)(.*)$/ig);
+			//件名の頭のRe:…部分
 			rePart = RegExp.$1;
-			//件名のRe:・・・以降の部分
+			//件名のRe:…以降の部分
 			mainPart = RegExp.$2;
-			//Re:・・・部分を大文字に変換して:で分割
-			rePart = rePart.toUpperCase().split(/[:：]/);
+			//Re:…部分を大文字に変換・"："を半角に変換して:で分割
+			reAry = rePart.toUpperCase().replace(/：/, ':').split(/:/);
+			//Reが一回だけの場合は何もしない
+			if (reAry.length && reAry[0] == 'RE:') { return; }
 			//Reを数える
-			for (i = 0; re = rePart[i++];) {
+			for (i = 0; re = reAry[i++];) {
 				count += (re == 'RE') ? 1 : Number(re.replace(/.+(\d)+/, '$1'))
 			}
-			$title.val('Re' + count + ':' + mainPart);
+			$title.val('Re' + (count > 1 ? count : '') + ':' + mainPart);
 		}
 	},
 

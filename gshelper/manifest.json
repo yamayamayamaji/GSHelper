@@ -1,6 +1,6 @@
 {
   "name": "GSHelper",
-  "version": "0.3.0.0",
+  "version": "0.3.0.1",
   "description": "helper extension for GroupSession",
   "content_scripts": [ {
       "all_frames": true,

@@ -8,11 +8,14 @@
   
   
 #### 使用方法：  
-Chromeウェブストアに公開しました。
-ここからインストールしてください。
-https://chrome.google.com/webstore/detail/gshelper/kpcennbgaidhfmipdpabmhhmgclipinf
-
-
+Chromeウェブストアに公開しました。  
+ここからインストールしてください。  
+https://chrome.google.com/webstore/detail/gshelper/kpcennbgaidhfmipdpabmhhmgclipinf  
+  
+  
+  
+> 
+> _(Chromeウェブストアからインストールできるようにしました。)_  
 > 1. http://goo.gl/IXep5 で gshelper.crx をダウンロード  
 > 
 > 2. chromeで拡張機能ページ( chrome://chrome/extensions/ )を開き  

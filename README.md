@@ -15,7 +15,7 @@ https://chrome.google.com/webstore/detail/gshelper/kpcennbgaidhfmipdpabmhhmgclip
   
   
 > 
-> _(Chromeウェブストアからインストールできるようにしました。)_  
+> _(Chromeウェブストアからインストールできるようにしました。下記の作業は不要です。)_  
 > 1. http://goo.gl/IXep5 で gshelper.crx をダウンロード  
 > 
 > 2. chromeで拡張機能ページ( chrome://chrome/extensions/ )を開き  

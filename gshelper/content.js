@@ -220,7 +220,7 @@ GSHelper = {
 		scope: 'sch020',
 		//初期化
 		init: function(){
-			var self = this;
+			var self = this, td;
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 				//選択内容を保存されている内容に変更(初期表示変更)
@@ -228,6 +228,14 @@ GSHelper = {
 				return;
 			}
 			this.clearProcScope();
+
+			//当日のハイライトを強化
+			td = $('.sc_thismonth_today').closest('td').css({
+				cssText: 'border: 3px solid #ffdd6f !important',
+				backgroundColor: '#ffffcc'
+			}).get(0);
+			//当日を画面内に表示
+			window.scrollTo(td.offsetLeft, td.offsetTop);
 
 			//グループ・メンバー変更時のイベントリスナ追加
 			$('select').filter('[name=sch020SelectUsrSid],[name=sch010DspGpSid]').change(function(){

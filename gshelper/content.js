@@ -25,7 +25,8 @@ STORE_KEY = {
 	SCH_DEF_GROUP: 'gsh.sch_default_group',
 	MONTH_SCH_DEF_MEMBER: 'gsh.monthly_sch_default_member',
 	PWEEK_SCH_DEF_MEMBER: 'gsh.personal_weekly_sch_default_member',
-	FILE_LIST_DEF_SORT_COL: 'gsh.file_list_default_sort_column',
+	SCH_DEF_PUBLIC: 'gsh.sch_default_publication',
+	FILE_LIST_DESORT_COL: 'gsh.file_list_default_sort_column',
 	FILE_LIST_DEF_ORDER: 'gsh.file_list_default_order'
 };
 
@@ -39,43 +40,24 @@ GSHelper = {
 		this.retryMgr.init();
 
 		if (locPath) {
-			if (locPath.match('/main/man001.do')) {
+			var page = locPath.replace(/.+\/([^/]+)\.do$/, '$1');
+			//メインページ
+			if (page == 'man001') {
 				//バージョン更新確認
 				if (sessionStorage[STORE_KEY.VERSION_CONFIRMED] != 'true') {
 					this.versionMgr.init();
 				}
-				this.man001.init();
 			}
-			if (locPath.match('/schedule/sch020.do')) {
-				this.sch020.init();
-			}
-			if (locPath.match('/schedule/sch200.do')) {
-				this.sch200.init();
-			}
-			if (locPath.match('/schedule/sch093.do')) {
-				this.sch093.init();
-			}
-			if (locPath.match('/file/fil040.do')) {
-				this.fil040.init();
-			}
-			if (locPath.match('/file/fil120.do')) {
-				this.fil120.init();
-			}
-			if (locPath.match('/file/fil120kn.do')) {
-				this.fil120kn.init();
-			}
-			if (locPath.match('/smail/sml020.do')) {
-				this.sml020.init();
-			}
-			if (locPath.match('/common/cmn999.do')) {
-				this.cmn999.init();
+
+			if (page && this[page]) {
+				this[page].init();
 			}
 		}
 		return this;
 	},
 
 	/**
-	 * リトライ管理オブジェクト
+	 * リトライマネージャ
 	 */
 	retryMgr: {
 		//初期化
@@ -94,7 +76,7 @@ GSHelper = {
 	},
 
 	/**
-	 * バージョン管理オブジェクト
+	 * バージョンマネージャ
 	 */
 	versionMgr: {
 		//初期化
@@ -121,7 +103,8 @@ GSHelper = {
 		notifyUpdate: function(){
 			var txt = 'GSHelper was upgraded to ' + this.curVer + ' (from ' + this.prevVer + ')... ';
 			var path = chrome.extension.getURL('/release_notes.html');
-			var anc = $('<a href="#" onclick="window.open(\'' + path + '\')">show details</a>').addClass('sc_ttl_sat');
+			var anc = $('<a href="#" onclick="window.open(\'' + path + '\')">show details</a>')
+						.addClass('sc_ttl_sat');
 			$('<div>').text(txt).append(anc)
 			.css({
 				fontSize: '12px',
@@ -147,26 +130,26 @@ GSHelper = {
 	},
 
 	/**
-	 * main/man001.do読込時に実行
-	 * ・スケジュール表示ボタン押下後の遷移先初期表示を 個人設定に合わせる
-	 *   (スケジュール画面表示後にリロードしなくて済むようになるだけ)
+	 * main/man001.doマネージャ
 	 */
 	man001: {
 		//初期化
 		init: function(){
-			var monthSchBtn = $('.btn_base1s_1'),
-				pweekSchBtn = $('.btn_base1s_2'),
+			var monthSchBtn = $('.btn_base1s_1, .btn_month'),
+				pweekSchBtn = $('.btn_base1s_2, .btn_week_kojin'),
 				schForm = $('form[name=schmainForm]');
 
 			//対象エレメントが存在しない間は待機
 			if (!monthSchBtn.length || !pweekSchBtn.length || !schForm.length) {
 				if (GSHelper.retryMgr.isRetryable('man001')) {
 					GSHelper.retryMgr.countUp('man001');
-					setTimeout($.proxy(arguments.callee, GSHelper), 1);
+					setTimeout($.proxy(arguments.callee, GSHelper), 300);
 				}
 				return;
 			}
 
+			//スケジュール表示ボタン押下後の遷移先初期表示を 個人設定に合わせる
+			//(スケジュール画面表示後にリロードしなくて済むようになるだけ)
 			$([{
 				btn: monthSchBtn,
 				prms: {
@@ -186,9 +169,10 @@ GSHelper = {
 				target.btn.wrap('<span>').parent().get(0)
 				.addEventListener('click', function(){
 					//スケジュール画面遷移時に一緒にポストされるようにhiddenを追加
-					var prms = [
-						{name: 'sch020SelectUsrSid', value: localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER]}
-					];
+					var prms = [{
+						name: 'sch020SelectUsrSid',
+						value: localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER]
+					}];
 					$.each(target.prms, function(k, v){
 						$('<input>').attr({
 							type: 'hidden',
@@ -199,51 +183,96 @@ GSHelper = {
 					GSHelper.setProcScope(target.procScope);
 				}, true);
 			});
+
+			//スケジュール登録ボタンのイベントリスナ追加
+			$('#tooltips_sch, #schedule_schmain').find('a')
+			.filter('[onclick*=addSchedule]').find('img')
+			.on('click', function(evt){
+				evt.preventDefault();
+				GSHelper.sch040.presetDefaultPublic($(this).closest('form'));
+			});
 		}
 	},
 
 	/**
-	 * schedule/sch010.do管理オブジェクト
+	 * schedule/schmain.doマネージャ
+	 * (メイン画面に表示されるスケジュール)
+	 */
+	schmain: {
+		//初期化
+		init: function(){
+			//スケジュール登録ボタンのイベントリスナ追加
+			$('a')
+			.filter('[onclick*=addSchedule]').find('img')
+			.on('click', function(evt){
+				GSHelper.sch040.presetDefaultPublic();
+			});
+		}
+	},
+
+	/**
+	 * schedule/sch010.doマネージャ
 	 * (週間スケジュール画面)
 	 */
 	sch010: {
 		//初期化
 		init: function(){
+			//スケジュール登録ボタンのイベントリスナ追加
+			$('a')
+			.filter('[onclick*=addSchedule]').find('img')
+			.on('click', function(evt){
+				evt.preventDefault();
+				GSHelper.sch040.presetDefaultPublic();
+			});
 		}
 	},
 
 	/**
-	 * schedule/sch020.do管理オブジェクト
+	 * schedule/sch020.doマネージャ
 	 * (月間スケジュール画面)
 	 */
 	sch020: {
 		scope: 'sch020',
 		//初期化
 		init: function(){
-			var self = this, td;
+			var self = this, todayTd;
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 				//選択内容を保存されている内容に変更(初期表示変更)
-				$('select[name=sch020SelectUsrSid]').val(localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER]).change();
+				$('select[name=sch020SelectUsrSid]')
+					.val(localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER]).change();
 				return;
 			}
 			this.clearProcScope();
 
 			//当日のハイライトを強化
-			td = $('.sc_thismonth_today').closest('td').css({
+			todayTd = $('.sc_thismonth_today').closest('td').css({
 				cssText: 'border: 3px solid #ffdd6f !important',
 				backgroundColor: '#ffffcc'
 			}).get(0);
 			//当日を画面内に表示
-			window.scrollTo(td.offsetLeft, td.offsetTop);
+			if (todayTd) {
+				window.scrollTo(todayTd.offsetLeft, todayTd.offsetTop);
+			}
 
-			//グループ・メンバー変更時のイベントリスナ追加
-			$('select').filter('[name=sch020SelectUsrSid],[name=sch010DspGpSid]').change(function(){
+			//グループ・メンバーのイベントリスナ追加
+			$('select').filter('[name=sch020SelectUsrSid],[name=sch010DspGpSid]')
+			.change(function(){
 				self.setProcScope();
 			});
-			//月移動ボタン押下時のイベントリスナ追加
-			$('a:has(img)[onclick*=buttonPush][href=#]').click(function(){
+
+			$('a')
+			//月移動ボタンのイベントリスナ追加
+			.filter(':has(img)[onclick*=buttonPush][href=#]')
+			.on('click', function(){
 				self.setProcScope();
+			})
+			.end()
+			//スケジュール登録ボタンのイベントリスナ追加
+			.filter('[onclick^=addSchedule]').find('img')
+			.on('click', function(evt){
+				evt.preventDefault();
+				GSHelper.sch040.presetDefaultPublic();
 			});
 		},
 		//処理スコープ設定
@@ -257,7 +286,59 @@ GSHelper = {
 	},
 
 	/**
-	 * schedule/sch200.do管理オブジェクト
+	 * schedule/sch030.doマネージャ
+	 * (日間スケジュール画面)
+	 */
+	sch030: {
+		//初期化
+		init: function(){
+			//スケジュール登録ボタンのイベントリスナ追加
+			$('a')
+			.filter('[onclick^=addSchedule]').find('img')
+			.on('click', function(evt){
+				evt.preventDefault();
+				GSHelper.sch040.presetDefaultPublic();
+			});
+		}
+	},
+
+	/**
+	 * schedule/sch040.doマネージャ
+	 * (スケジュール登録画面)
+	 */
+	sch040: {
+		init: function(){
+			var $pubRdo = $('input').filter('[name=sch040Public]');
+			//グループスケジュールの登録時には公開区分が公開・非公開しかなく
+			//初期値設定でそれ以外が指定されていると、ラジオボタンのどれもチェックされていない
+			//状態になる。その場合は先頭の選択肢をチェックじょうたいにしておく。
+			if (!$pubRdo.filter(':checked').length) {
+				$pubRdo[0].checked = true;
+			}
+		},
+		presetDefaultPublic: function(form){
+			var $form = $(form || document.forms[0]);
+			$.each(['sch040Public', 'sch041Public'], function(i, name){
+				var $input = $('input[name=' + name + ']');
+				if (!$input.length) {
+					$input = $('<input type="hidden" name="' + name + '">');
+				}
+				$input.val(localStorage[STORE_KEY.SCH_DEF_PUBLIC]).appendTo($form);
+			});
+		}
+	},
+
+	/**
+	 * schedule/sch041.doマネージャ
+	 * (スケジュール繰り返し登録画面)
+	 */
+	sch041: {
+		init: function(){
+		}
+	},
+
+	/**
+	 * schedule/sch200.doマネージャ
 	 * (個人週間スケジュール画面)
 	 */
 	sch200: {
@@ -268,19 +349,32 @@ GSHelper = {
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 				//選択内容を保存されている内容に変更(初期表示変更)
-				$('select[name=sch010DspGpSid]').val(localStorage[STORE_KEY.SCH_DEF_GROUP]);
-				$('select[name=sch100SelectUsrSid]').val(localStorage[STORE_KEY.PWEEK_SCH_DEF_MEMBER]).change();
+				$('select[name=sch010DspGpSid]')
+					.val(localStorage[STORE_KEY.SCH_DEF_GROUP]);
+
+				$('select[name=sch100SelectUsrSid]')
+					.val(localStorage[STORE_KEY.PWEEK_SCH_DEF_MEMBER]).change();
 				return;
 			}
 			this.clearProcScope();
 
-			//グループ・メンバー変更時のイベントリスナ追加
-			$('select').filter('[name=sch010DspGpSid],[name=sch100SelectUsrSid]').change(function(){
+			//グループ・メンバーのイベントリスナ追加
+			$('select').filter('[name=sch010DspGpSid],[name=sch100SelectUsrSid]')
+			.change(function(){
 				self.setProcScope();
 			});
-			//月移動ボタン押下時のイベントリスナ追加
-			$('a:has(img)[onclick*=buttonPush][href=#]').click(function(){
+
+			//週・日移動ボタンのイベントリスナ追加
+			$('a')
+			.filter(':has(img)[onclick*=buttonPush][href=#]')
+			.on('click', function(){
 				self.setProcScope();
+			});
+
+			//日時セル(スケジュール登録ボタン)のイベントリスナ追加
+			$('#calendar')
+			.on('mousedown', '.fc-day-content, .ui-widget-content', function(){
+				GSHelper.sch040.presetDefaultPublic();
 			});
 		},
 		//処理スコープ設定
@@ -294,7 +388,57 @@ GSHelper = {
 	},
 
 	/**
-	 * schedule/sch093.do管理オブジェクト
+	 * schedule/sch091.doマネージャ
+	 * (スケジュール初期値設定画面)
+	 */
+	sch091: {
+		DEF_PUB_SELECTOR: 'input[name=sch091PubFlg]',
+		//初期化
+		init: function(){
+			var self = this;
+			this.addPubOption();
+			this.setCurrentPubSetting();
+
+			//OKボタン押下時のイベントリスナ追加
+ 			$('.btn_ok1').click(function(){
+ 				//OKボタン押下後、確認画面を経由するので設定内容をsessionStrogeに保持しておく
+ 				var q = {};
+ 				q[STORE_KEY.SCH_DEF_PUBLIC] = $(self.DEF_PUB_SELECTOR)
+ 												.filter(':checked').val();
+ 				sessionStorage[STORE_KEY.REG_QUE] = JSON.stringify(q);
+
+				self.$pubOnlyGroupRdo.attr('name', '_sch091PubFlg');
+			}).each(function(){
+				//既定のonclick属性の処理が後になるように
+				this.onclick = this.onclick;
+			});
+		},
+		//公開設定の選択肢を追加
+		addPubOption: function(){
+			var $orgRadio = $(this.DEF_PUB_SELECTOR).filter(':last'),
+				$orgLabel = $orgRadio.next();
+			//[所属グループのみ公開]ラジオボタンを追加
+			var $rdo = $orgRadio.clone()
+						.attr({
+							id: "sch091PubFlg3",
+							checked: false
+						}).val('3')
+						.insertAfter($orgLabel),
+				$lbl = $orgLabel.clone().find('label')
+						.text('所属グループのみ公開')
+						.attr('for', 'sch091PubFlg3').end()
+						.insertAfter($rdo);
+			this.$pubOnlyGroupRdo = $rdo;
+		},
+		//現在の公開設定内容に合ったラジオボタンを選択状態にする
+		setCurrentPubSetting: function(){
+			var defVal = GSHelper.getOrgSettingDefVal(STORE_KEY.SCH_DEF_PUBLIC);
+			$(this.DEF_PUB_SELECTOR).val([defVal]);
+		}
+	},
+
+	/**
+	 * schedule/sch093.doマネージャ
 	 * (グループメンバー表示設定画面)
 	 */
 	sch093: {
@@ -352,13 +496,19 @@ GSHelper = {
 
 			$.each(params, $.proxy(function(i, p){
 				var selbox = this[p.selProp],
-					labelCss = {width: '80px', display: 'inline-block', textAlign: 'right', paddingRight: '5px'},
+					labelCss = {
+						width: '80px',
+						display: 'inline-block',
+						textAlign: 'right',
+						paddingRight: '5px'
+					},
 					loadingOpt = '<option>読み込み中...</option>',
 					mbrId = null;
 				//selectboxが存在しない場合(初期読込時)
 				if (!selbox) {
 					//空のselectboxを設置
-					this[p.selProp] = selbox = $('<select id="' + p.selName +'" disabled>' + loadingOpt + '</select>');
+					this[p.selProp] = selbox =
+						$('<select id="' + p.selName +'" disabled>' + loadingOpt + '</select>');
 					$('<div>').appendTo(this.$mbrContainer).append(selbox);
 					//ラベルも作る
 					var label = $('<span>').text(p.label).addClass('text_bb1')
@@ -371,20 +521,22 @@ GSHelper = {
 					mbrId = selbox.val();
 				}
 
-				$.post('../schedule/' + p.url, $.extend({ sch010DspGpSid: gpId }, p.opt), $.proxy(function(res){
-					var defVal = GSHelper.getOrgSettingDefVal(p.key, mbrId),
-						resSel = $(res).find('select[name=' + p.selName + ']')
-									.removeAttr('onchange').unbind().val(defVal);
-					//取得した内容にselectboxの中身を入れ替え
-					selbox.find('option').remove().end()
-						.append(resSel.find('option')).prop('disabled', false);
+				$.post('../schedule/' + p.url,
+					$.extend({ sch010DspGpSid: gpId }, p.opt),
+					$.proxy(function(res){
+						var defVal = GSHelper.getOrgSettingDefVal(p.key, mbrId),
+							resSel = $(res).find('select[name=' + p.selName + ']')
+										.removeAttr('onchange').unbind().val(defVal);
+						//取得した内容にselectboxの中身を入れ替え
+						selbox.find('option').remove().end()
+							.append(resSel.find('option')).prop('disabled', false);
 				}, this));
 			}, this));
 		}
 	},
 
 	/**
-	 * file/fil040.do管理オブジェクト
+	 * file/fil040.doマネージャ
 	 * (ファイル管理 フォルダ内容画面)
 	 */
 	fil040: {
@@ -392,9 +544,10 @@ GSHelper = {
 		//初期化
 		init: function(){
 			var self = this;
-			var $sortableColumnHeader = $('.td_type_file:has(a)').filter(function(){
-				return $(this).text() != '';
-			});
+			var $sortableColumnHeader = $('.td_type_file:has(a)')
+										.filter(function(){
+											return $(this).text() != '';
+										});
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 
@@ -432,7 +585,7 @@ GSHelper = {
 	},
 
 	/**
-	 * file/fil120.do管理オブジェクト
+	 * file/fil120.doマネージャ
 	 * (ファイル管理 表示設定画面)
 	 */
 	fil120: {
@@ -470,30 +623,38 @@ GSHelper = {
 			var defVal = GSHelper.getOrgSettingDefVal(STORE_KEY.FILE_LIST_DEF_SORT_COL);
 
 			if (!this.$sortCol) {
-				this.$sortCol = $('<select id="sortCol">').append('<option>読み込み中...</option>').prop('disabled', true);
+				this.$sortCol = $('<select id="sortCol">')
+								.append('<option>読み込み中...</option>')
+								.prop('disabled', true);
 			}
 			this.$container.append(this.$sortCol);
 
 			//フォルダ情報画面(fil040.do)にアクセスする為、キャビネット一覧画面(fil010.do)から
 			//キャビネットID・ディレクトリIDを1組取得する
 			$.post('../file/fil010.do', $.proxy(function(res){
-				var resPart = $(res).find('#file-list-table a[onclick^=' + LANDMARK + ']:first').parent().html();
-				var params = resPart.replace(/[\n\s]+/g, '').match(new RegExp(LANDMARK + '\\((\\d+),(\\d+)\\)'));
+				var resPart = $(res).find('#file-list-table a[onclick^=' + LANDMARK + ']:first')
+								.parent().html();
+				var params = resPart.replace(/[\n\s]+/g, '')
+								.match(new RegExp(LANDMARK + '\\((\\d+),(\\d+)\\)'));
 
 				//取得したキャビネットID・ディレクトリIDのキャビネット一覧画面にアクセスし、ソート可能項目を取得する
-				$.post('../file/fil040.do', { fil010SelectCabinet: params[1], fil010SelectDirSid: params[2] }, $.proxy(function(res){
-					var $cols = $(res).find('.td_type_file a');
-					var opt = '';
+				$.post('../file/fil040.do',
+					{ fil010SelectCabinet: params[1], fil010SelectDirSid: params[2] },
+					$.proxy(function(res){
+						var $cols = $(res).find('.td_type_file a');
+						var opt = '';
 
-					$cols.each(function(){
-						var t = $(this).text().replace(/[▼▲]/g, ''), v;
-						if (t && this.onclick) {
-							v = this.onclick.toString().replace(/[\n\s]+/g, '').match(new RegExp('fil040TitleClick\\((\\d+),.*\\)'))[1];
-							opt += '<option value="' + v + '">' + t + '</option>';
-						}
-					});
+						$cols.each(function(){
+							var t = $(this).text().replace(/[▼▲]/g, ''), v;
+							if (t && this.onclick) {
+								v = this.onclick.toString()
+									.replace(/[\n\s]+/g, '')
+									.match(new RegExp('fil040TitleClick\\((\\d+),.*\\)'))[1];
+								opt += '<option value="' + v + '">' + t + '</option>';
+							}
+						});
 
-					this.$sortCol.html(opt).prop('disabled', false).val(defVal);
+						this.$sortCol.html(opt).prop('disabled', false).val(defVal);
 				}, this));
 			}, this));
 		},
@@ -516,7 +677,7 @@ GSHelper = {
 	},
 
 	/**
-	 * file/fil120kn.do管理オブジェクト
+	 * file/fil120kn.doマネージャ
 	 */
 	fil120kn: {
 		//初期化
@@ -526,7 +687,7 @@ GSHelper = {
 	},
 
 	/**
-	 * smail/sml020.do管理オブジェクト
+	 * smail/sml020.doマネージャ
 	 * (ショートメール 新規作成(返信)画面)
 	 */
 	sml020: {
@@ -558,7 +719,36 @@ GSHelper = {
 	},
 
 	/**
-	 * common/cmn999.do管理オブジェクト
+	 * ringi/rng030.doマネージャ
+	 * (稟議	内容確認画面)
+	 */
+	rng030: {
+		//初期化
+		init: function(){
+			this.displayLinkURL();
+		},
+		//表示中の稟議へのリンクURLを表示する
+		displayLinkURL: function(){
+			var $container = $('.btn_back_n1').filter(':last').closest('td'),
+				wrapperHtml = '<div style="display:inline-block;width:49%;">',
+				sid = $('input[name=rngSid]').val(),
+				linkUrl = location.origin +
+							'/gsession/common/cmn001.do?url=%2Fgsession%2Fringi%2Frng030.do%3FrngSid%3D' + sid,
+				$label = $('<label for="ringiUrl">URL:</label>'),
+				$input = $('<input id="ringiURl" value="' + linkUrl + '"' +
+							' style="color:#666;width:400px;" readonly>');
+
+			$container.wrapInner(wrapperHtml);
+			$(wrapperHtml).css({
+				color: '#666',
+				textAlign: 'left'
+			}).append($label, $input).prependTo($container);
+			$('#ringiURl').on('click', function(){ $(this).select(); });
+		}
+	},
+
+	/**
+	 * common/cmn999.doマネージャ
 	 * (登録/更新 確認画面)
 	 */
 	cmn999: {
@@ -576,6 +766,9 @@ GSHelper = {
 					sessionStorage.removeItem(STORE_KEY.REG_QUE);
 					sessionStorage.removeItem(STORE_KEY.SETTING_CONF);
 				}
+			}).each(function(){
+				//既定のonclick属性の処理が後になるように
+				this.onclick = this.onclick;
 			});
 		}
 	},
@@ -587,7 +780,8 @@ GSHelper = {
 	 */
 	getOrgSettingDefVal: function(storeKey, val){
 		return val ||
-				(sessionStorage[STORE_KEY.REG_QUE] ? JSON.parse(sessionStorage[STORE_KEY.REG_QUE])[storeKey] : null) ||
+				(sessionStorage[STORE_KEY.REG_QUE] ?
+					JSON.parse(sessionStorage[STORE_KEY.REG_QUE])[storeKey] : null) ||
 				localStorage[storeKey] || '';
 	},
 

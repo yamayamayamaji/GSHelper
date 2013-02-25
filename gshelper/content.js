@@ -701,20 +701,21 @@ GSHelper = {
 				titleText = $title.val(),
 				rePart, mainPart, count = 0, reAry, re;
 
-			titleText.match(/^((?:Re\d*[：:])+)(.*)$/ig);
-			//件名の頭のRe:…部分
-			rePart = RegExp.$1;
-			//件名のRe:…以降の部分
-			mainPart = RegExp.$2;
-			//Re:…部分を大文字に変換・"："を半角に変換して:で分割
-			reAry = rePart.toUpperCase().replace(/：/g, ':').split(/:/);
-			//Reが一回だけの場合は何もしない
-			if (reAry.length == 1 && reAry[0] == 'RE') { return; }
-			//Reを数える
-			for (i = 0; re = reAry[i++];) {
-				count += (re == 'RE') ? 1 : Number(re.replace(/\D+(\d)+$/, '$1'))
+			if (titleText.match(/^((?:Re\d*[：:])+)(.*)$/ig)) {
+				//件名の頭のRe:…部分
+				rePart = RegExp.$1;
+				//件名のRe:…以降の部分
+				mainPart = RegExp.$2;
+				//Re:…部分を大文字に変換・"："を半角に変換して:で分割
+				reAry = rePart.toUpperCase().replace(/：/g, ':').split(/:/);
+				//Reが一回だけの場合は何もしない
+				if (reAry.length == 1 && reAry[0] == 'RE') { return; }
+				//Reを数える
+				for (i = 0; re = reAry[i++];) {
+					count += (re == 'RE') ? 1 : Number(re.replace(/\D+(\d)+$/, '$1'))
+				}
+				$title.val('Re' + (count > 1 ? count : '') + ':' + mainPart);
 			}
-			$title.val('Re' + (count > 1 ? count : '') + ':' + mainPart);
 		}
 	},
 

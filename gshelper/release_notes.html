@@ -5,6 +5,11 @@
 </head>
 <body>
 <ul>
+  <li><h3>ver0.3.2.2 2013-06-21</h3>
+    <h4>修正</h4>
+    <p>・chromeのバージョンアップによりcontent scriptでweb pageのDOMイベントを<br>
+    発火できなくなっていました。($(element).change()やelement.onchange()が効かなくなっていた)<br>
+    そのためcreateEvent・dispatchEventでシミュレートするように修正しました。
   <li><h3>ver0.3.2.1 2013-02-25</h3>
     <h4>修正</h4>
     <p>・ショートメールタイトル変換のバグ修正。

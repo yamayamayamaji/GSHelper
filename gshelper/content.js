@@ -38,6 +38,7 @@ GSHelper = {
 //		var locPath = location.pathname;
 		var locPath = $('form').attr('action');
 		this.retryMgr.init();
+		this.eventMgr.init();
 
 		if (locPath) {
 			var page = locPath.replace(/.+\/([^/]+)\.do$/, '$1');
@@ -58,6 +59,7 @@ GSHelper = {
 
 	/**
 	 * リトライマネージャ
+	 * @type {Object}
 	 */
 	retryMgr: {
 		//初期化
@@ -77,6 +79,7 @@ GSHelper = {
 
 	/**
 	 * バージョンマネージャ
+	 * @type {Object}
 	 */
 	versionMgr: {
 		//初期化
@@ -113,6 +116,22 @@ GSHelper = {
 				padding: '10px',
 				textAlign: 'left'
 			}).appendTo($('#mainScreenListLeft') || $(document.body || document.frames[0]));
+		}
+	},
+
+	/**
+	 * イベントマネージャ
+	 * @type {Object}
+	 */
+	eventMgr: {
+		events: ['change'],
+		init: function(){
+			var i, type, evt;
+			for (i = 0; type = this.events[i++];) {
+				evt = document.createEvent('Event');
+				evt.initEvent(type, true, true);
+				this[type] = evt;
+			}
 		}
 	},
 
@@ -240,7 +259,8 @@ GSHelper = {
 				this.setProcScope();
 				//選択内容を保存されている内容に変更(初期表示変更)
 				$('select[name=sch020SelectUsrSid]')
-					.val(localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER]).change();
+					.val(localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER])[0]
+					.dispatchEvent(GSHelper.eventMgr.change);
 				return;
 			}
 			this.clearProcScope();
@@ -353,7 +373,8 @@ GSHelper = {
 					.val(localStorage[STORE_KEY.SCH_DEF_GROUP]);
 
 				$('select[name=sch100SelectUsrSid]')
-					.val(localStorage[STORE_KEY.PWEEK_SCH_DEF_MEMBER]).change();
+					.val(localStorage[STORE_KEY.PWEEK_SCH_DEF_MEMBER])[0]
+					.dispatchEvent(GSHelper.eventMgr.change);
 				return;
 			}
 			this.clearProcScope();
@@ -572,24 +593,6 @@ GSHelper = {
 				this.addEventListener('click', function(){
 					self.setProcScope();
 				}, true);
-			});
-
-			this.createDDZone();
-		},
-		//ファイルドラッグ&ドロップエリア作成
-		createDDZone: function(attribute){
-var url = '../common/cmn110.do';
-	url = url + '?cmn110parentListName=fil080TempFiles';
-	url = url + '&cmn110pluginId=file';
-	url = url + '&cmn110fileLimit=1';
-	url = url + '&cmn110Mode=3';
-			var $iframe = $('<iframe src="' + url + '" height="200" width="200">');
-var q = 'backDspLow=fil040&CMD=fil040addFile&fil070ParentDirSid=' + document.forms[0].fil010SelectDirSid.value;
-			var $iframe2 = $('<iframe src="../file/fil040.do?' + q + '" height="200" width="200">');
-			$('.prj_tbl_base3').after($iframe, $iframe2);
-			$iframe.on('load', function(){
-				var $document = $(this).contents();
-				//$document.find('input[type=button][value=添付]').click();
 			});
 		},
 		//処理スコープ設定

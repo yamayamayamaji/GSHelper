@@ -573,6 +573,24 @@ GSHelper = {
 					self.setProcScope();
 				}, true);
 			});
+
+			this.createDDZone();
+		},
+		//ファイルドラッグ&ドロップエリア作成
+		createDDZone: function(attribute){
+var url = '../common/cmn110.do';
+	url = url + '?cmn110parentListName=fil080TempFiles';
+	url = url + '&cmn110pluginId=file';
+	url = url + '&cmn110fileLimit=1';
+	url = url + '&cmn110Mode=3';
+			var $iframe = $('<iframe src="' + url + '" height="200" width="200">');
+var q = 'backDspLow=fil040&CMD=fil040addFile&fil070ParentDirSid=' + document.forms[0].fil010SelectDirSid.value;
+			var $iframe2 = $('<iframe src="../file/fil040.do?' + q + '" height="200" width="200">');
+			$('.prj_tbl_base3').after($iframe, $iframe2);
+			$iframe.on('load', function(){
+				var $document = $(this).contents();
+				//$document.find('input[type=button][value=添付]').click();
+			});
 		},
 		//処理スコープ設定
 		setProcScope: function(){

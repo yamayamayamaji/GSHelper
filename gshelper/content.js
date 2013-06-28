@@ -331,7 +331,7 @@ GSHelper = {
 			var $pubRdo = $('input').filter('[name=sch040Public]');
 			//グループスケジュールの登録時には公開区分が公開・非公開しかなく
 			//初期値設定でそれ以外が指定されていると、ラジオボタンのどれもチェックされていない
-			//状態になる。その場合は先頭の選択肢をチェックじょうたいにしておく。
+			//状態になる。その場合は先頭の選択肢をチェック状態にしておく。
 			if (!$pubRdo.filter(':checked').length) {
 				$pubRdo[0].checked = true;
 			}
@@ -667,8 +667,8 @@ GSHelper = {
 
 						$cols.each(function(){
 							var t = $(this).text().replace(/[▼▲]/g, ''), v;
-							if (t && this.onclick) {
-								v = this.onclick.toString()
+							if (t && this.outerHTML.match('onclick')) {
+								v = this.outerHTML
 									.replace(/[\n\s]+/g, '')
 									.match(new RegExp('fil040TitleClick\\((\\d+),.*\\)'))[1];
 								opt += '<option value="' + v + '">' + t + '</option>';

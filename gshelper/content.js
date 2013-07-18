@@ -594,7 +594,184 @@ GSHelper = {
 					self.setProcScope();
 				}, true);
 			});
+
+			//ファイルドロップエリア作成
+			this.createDropZone();
+			this.curDirId = $('[name=selectDir]').val();
 		},
+
+		//ファイルドロップエリア作成
+		createDropZone: function(){
+			var self = this,
+				$t = $('.prj_tbl_base3'),
+				$desc = $('<p>ドロップしてファイルを追加</p>').css({
+					color: '#999',
+					fontSize: '20px',
+					fontWeight: 'bold',
+					margin: 0,
+					position: 'relative',
+					textAlign: 'center',
+					textShadow: '1px 1px 3px #fff',
+					top: '40%',
+					width: '100%'
+				}),
+				$dZone = $('<div>').css({
+					background:'rgba(70, 70, 6, .2)',
+					border: '5px dotted rgba(100, 100, 100, .7)',
+					borderRadius: '10px',
+					height: $t.innerHeight(),
+					left: $t.position().left,
+					position:'absolute',
+					top: $t.position().top,
+					verticalAlign:'middle',
+					width: $t.innerWidth()
+				}).append($desc).prependTo('body').hide();
+
+			$dZone.on('drop', function(evt){
+				//ドラッグされたファイル情報を取得
+				var files = evt.originalEvent.dataTransfer.files;
+				//アップロード処理
+				self.uploadFiles(files);
+				//ドロップエリア非表示
+				setTimeout(self.hideDropZone.bind(self), 1000);
+				return false;
+			}).on('dragover', function(evt){
+				evt.preventDefault();
+				evt.stopPropagation();
+				return false;
+			}).on('dragleave', function(evt){
+				//ドロップエリア非表示
+				self.hideDropZone();
+				$desc.hide();
+			});
+
+			$t.on('dragenter', function(evt){
+				//ドロップエリア表示
+				self.showDropZone();
+				evt.preventDefault();
+				evt.stopPropagation();
+				return false;
+			});
+
+			return this.$dropZone = $dZone;
+		},
+
+		/**
+		 * ファイルドロップエリア表示
+		 */
+		showDropZone: function(){
+			this.$dropZone.children().andSelf().show();
+		},
+
+		/**
+		 * ファイルドロップエリア非表示
+		 */
+		hideDropZone: function(){
+			this.$dropZone.children().andSelf().hide();
+		},
+
+		/**
+		 * ファイルアップロード処理
+		 * @param  {FileList} files ファイルリスト
+		 */
+		uploadFiles: function(files){
+			//ファイルを1つずつアップロード
+			$.when.apply(null, $.map(files, this.doFileUpload.bind(this)))
+			//アップロードしたファイルをディレクトリに追加(リクエスト送信)
+			.then(this.addFilesToDirectory.bind(this))
+			//この時に渡される同期トークンを抽出
+			.then(this.extractToken.bind(this))
+			//アップロード処理をコミット(リクエスト送信)
+			.then(this.commitUploadProc.bind(this))
+			//画面リロード
+			.then(function(){
+				$('form')
+				.find('input[name=CMD]').val('detailDir').end()
+				.find('input[name=moveToDir]').val(this.curDirId).end()
+				.submit();
+			}.bind(this));
+		},
+
+		/**
+		 * ファイルアップロード実処理
+		 * @param  {File} file ファイル
+		 * @return {Object} jqXHRオブジェクト
+		 */
+		doFileUpload: function(file){
+			var data = {
+				"CMD": 'fileUpload',
+				"cmn110file": file,
+				"cmn110fileLimit": '0',
+				"cmn110pluginId": 'file'
+			};
+			var fd = new FormData();
+			$.each(data, function(k, v){
+				fd.append(k, v);
+			});
+			return $.ajax({
+				url: '../common/cmn110.do',
+				type: 'POST',
+				data: fd,
+				enctype: 'multipart/form-data',
+				processData: false,
+				contentType: false
+			});
+		},
+
+		/**
+		 * アップロードしたファイルを表示中のディレクトリに追加する(ためのリクエストを送信)
+		 * @return {Object} jqXHRオブジェクト
+		 */
+		addFilesToDirectory: function(){
+			return $.post(
+				'../file/fil080.do',
+				{
+					"CMD": 'fil080add',
+					"fil070DirSid": '',
+					"fil070ParentDirSid": this.curDirId,
+					"fil080PluralKbn": '1',
+					"fil080SvPluralKbn": '1'
+				}
+			);
+		},
+
+		/**
+		 * htmlの中から同期トークンを抽出して返す
+		 * @return {String} 同期トークン
+		 */
+		extractToken: function(html){
+			try { var $h = $(html); }
+				catch (e) { console.log(e); return; }
+
+			var token = '', $err = $h.find('.text_error');
+			if ($err.length) {
+				console.log($err.text());
+			} else {
+				token = $h.find('[name="org.apache.struts.taglib.html.TOKEN"]').val();
+			}
+			return token;
+		},
+
+		/**
+		 * ファイルアップロード処理コミット
+		 * @param  {String} token 同期トークン
+		 * @return {Object} jqXHRオブジェクト
+		 */
+		commitUploadProc: function(token){
+			return $.post(
+				'../file/fil080kn.do',
+				{
+					"org.apache.struts.taglib.html.TOKEN": token,
+					"CMD": 'fil080knok',
+					"fil070DirSid": '',
+					"fil070ParentDirSid": this.curDirId,
+					"fil080Mode": '0',
+					"fil080Biko": '',
+					"fil080UpCmt": ''
+				}
+			);
+		},
+
 		//処理スコープ設定
 		setProcScope: function(){
 			GSHelper.setProcScope(this.scope);

@@ -1,7 +1,17 @@
+/*!
+ * content.js
+ * in GSHelper (Google Chrome Extension)
+ * https://github.com/yamayamayamaji/GSHelper
+ * Copyright, Ryosuke Yamaji
+ *
+ * License: MIT
+ */
+"use strict";
+
 /**
  * [C]ontent [S]cripts util function
  */
-$CS = {
+var $CS = {
 	getManifest: function(callback){
 		var url = chrome.extension.getURL('/manifest.json');
 		var xhr = new XMLHttpRequest();
@@ -16,7 +26,7 @@ $CS = {
 /**
  * @const
  */
-STORE_KEY = {
+var STORE_KEY = {
 	PREV_VERSION: 'gsh.prev_version',
 	VERSION_CONFIRMED: 'gsh.version_confirmed',
 	REG_QUE: 'gsh.reg_que',
@@ -30,7 +40,7 @@ STORE_KEY = {
 	FILE_LIST_DEF_ORDER: 'gsh.file_list_default_order'
 };
 
-GSHelper = {
+var GSHelper = {
 	/**
 	 * 初期処理
 	 */
@@ -54,6 +64,9 @@ GSHelper = {
 				this[page].init();
 			}
 		}
+
+		setTimeout(this.supplyInstantMoveTool.bind(this), 500);
+
 		return this;
 	},
 
@@ -149,6 +162,38 @@ GSHelper = {
 	},
 
 	/**
+	 * 簡易移動ツールを設置
+	 */
+	supplyInstantMoveTool: function(){
+		var body = document.body;
+		//スクロール高さが画面高さの半分以下の場合は表示しない
+		if (body.scrollHeight <= body.clientHeight * 1.5) {
+			setTimeout(this.supplyInstantMoveTool.bind(this), 500);
+			return;
+		}
+
+		$('<div class="instant-move-tool">' +
+			'<div class="move-top" title="go to top">▲</div>' +
+			'<div class="move-bottom" title="go to bottom">▼</div></div>')
+		.appendTo(body);
+
+		$('<link rel="stylesheet" type="text/css">')
+			.attr('href', chrome.extension.getURL('content.css'))
+			.insertAfter('link:last');
+
+		$('.instant-move-tool').on('click', '.move-top, .move-bottom', function(){
+			var b = document.body,
+				$btn = $(this), d;
+			if ($btn.hasClass('move-top')) {
+				d = 0;
+			} else if ($btn.hasClass('move-bottom')) {
+				d = b.scrollHeight - b.clientHeight;
+			}
+			$(b).animate({scrollTop: d}, {duration: 300, easing: 'swing'});
+		});
+	},
+
+	/**
 	 * main/man001.doマネージャ
 	 */
 	man001: {
@@ -162,7 +207,7 @@ GSHelper = {
 			if (!monthSchBtn.length || !pweekSchBtn.length || !schForm.length) {
 				if (GSHelper.retryMgr.isRetryable('man001')) {
 					GSHelper.retryMgr.countUp('man001');
-					setTimeout($.proxy(arguments.callee, GSHelper), 300);
+					setTimeout(this.init.bind(this), 300);
 				}
 				return;
 			}

@@ -1,0 +1,36 @@
+/*!
+ * content.css
+ * in GSHelper (Google Chrome Extension)
+ * https://github.com/yamayamayamaji/GSHelper
+ * Copyright, Ryosuke Yamaji
+ *
+ * License: MIT
+ */
+.instant-move-tool {
+	bottom: 45%;
+	cursor: pointer;
+	position: fixed;
+	right: 0;
+}
+
+.instant-move-tool .move-top,
+.instant-move-tool .move-bottom {
+	background: black;
+	color: #fffff7;
+	opacity: 0.4;
+	padding: 7px 3px;
+	transition: opacity 0.2s linear;
+}
+
+.instant-move-tool .move-top:hover,
+.instant-move-tool .move-bottom:hover {
+	opacity: .8;
+}
+
+.instant-move-tool .move-top {
+	border-radius: 8px 8px 0 0;
+}
+
+.instant-move-tool .move-bottom {
+	border-radius: 0 0 8px 8px;
+}

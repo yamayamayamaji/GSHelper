@@ -162,13 +162,42 @@ var GSHelper = {
 	},
 
 	/**
+	 * GSのバージョンを返す
+	 * @return {String} GSバージョン表記
+	 */
+	getGSVersion: function(){
+		var v, $cr = $('.copyright2');
+
+		if ($cr.length) {
+			v = $cr.text().replace(/^.*Ver\.?([0-9\.]+).*$/, '$1');
+		} else {
+			$.ajax({
+				url: '../api/main/version.do?',
+				type: 'GET',
+				async: false,
+				success: function(res){
+					try {
+						v = $(res).find('Result').text();
+					} catch (e) { console.log('can not get GS version.') }
+				}
+			});
+		}
+
+		return v
+	},
+
+	/**
 	 * 簡易移動ツールを設置
 	 */
 	supplyInstantMoveTool: function(){
 		var body = document.body;
 		//スクロール高さが画面高さの半分以下の場合は表示しない
-		if (body.scrollHeight <= body.clientHeight * 1.5) {
-			setTimeout(this.supplyInstantMoveTool.bind(this), 500);
+		if (body.scrollHeight <= window.innerHeight * 1.5) {
+			var retryId = 'instantMoveTool';
+			if (GSHelper.retryMgr.isRetryable(retryId)) {
+				GSHelper.retryMgr.countUp(retryId);
+				setTimeout(this.supplyInstantMoveTool.bind(this), 500);
+			}
 			return;
 		}
 
@@ -187,7 +216,7 @@ var GSHelper = {
 			if ($btn.hasClass('move-top')) {
 				d = 0;
 			} else if ($btn.hasClass('move-bottom')) {
-				d = b.scrollHeight - b.clientHeight;
+				d = b.scrollHeight - window.innerHeight;
 			}
 			$(b).animate({scrollTop: d}, {duration: 300, easing: 'swing'});
 		});
@@ -673,6 +702,8 @@ var GSHelper = {
 				}).append($desc).prependTo('body').hide();
 
 			$dZone.on('drop', function(evt){
+				evt.preventDefault();
+				evt.stopPropagation();
 				//ドラッグされたファイル情報を取得
 				var files = evt.originalEvent.dataTransfer.files;
 				//アップロード処理
@@ -745,14 +776,17 @@ var GSHelper = {
 		doFileUpload: function(file){
 			var data = {
 				"CMD": 'fileUpload',
-				"cmn110file": file,
 				"cmn110fileLimit": '0',
-				"cmn110pluginId": 'file'
+				"cmn110pluginId": 'file',
+				"cmn110uploadType": 0
 			};
 			var fd = new FormData();
 			$.each(data, function(k, v){
 				fd.append(k, v);
 			});
+			var fileParamName = (GSHelper.getGSVersion() >= '4.2.0') ?
+										'cmn110file[0]' : 'cmn110file';
+			fd.append(fileParamName, file);
 			return $.ajax({
 				url: '../common/cmn110.do',
 				type: 'POST',

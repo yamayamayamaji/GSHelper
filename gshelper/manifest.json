@@ -1,6 +1,6 @@
 {
   "name": "GSHelper",
-  "version": "0.3.4.1",
+  "version": "0.3.5.0",
   "description": "グループウェア Group Session (http://www.gs.sjts.co.jp/) にちょっと機能を付け足します。",
   "content_scripts": [ {
       "all_frames": true,
@@ -8,7 +8,7 @@
         "*://*/gsession/*",
         "*://*/gsession3/*"
       ],
-      "js": ["jquery.js", "content.js"]
+      "js": ["lib/jquery.js", "content.js"]
   } ],
   "icons": {
     "16": "images/icon-16.png",
@@ -20,8 +20,11 @@
     "*://*/gsession/*",
     "*://*/gsession3/*"
   ],
+  "content_security_policy": "script-src 'self'; object-src 'none'; img-src 'self'",
   "web_accessible_resources": [
     "manifest.json",
-    "content.css"
+    "content.css",
+    "lib/*",
+    "images/*"
   ]
 }

@@ -50,6 +50,10 @@ var GSHelper = {
 		this.retryMgr.init();
 		this.eventMgr.init();
 
+		$('<link rel="stylesheet" type="text/css">')
+			.attr('href', chrome.extension.getURL('/content.css'))
+			.insertAfter('link:last');
+
 		if (locPath) {
 			var page = locPath.replace(/.+\/([^/]+)\.do$/, '$1');
 			//メインページ
@@ -206,10 +210,6 @@ var GSHelper = {
 			'<div class="move-bottom" title="go to bottom">▼</div></div>')
 		.appendTo(body);
 
-		$('<link rel="stylesheet" type="text/css">')
-			.attr('href', chrome.extension.getURL('content.css'))
-			.insertAfter('link:last');
-
 		$('.instant-move-tool').on('click', '.move-top, .move-bottom', function(){
 			var b = document.body,
 				$btn = $(this), d;
@@ -220,6 +220,140 @@ var GSHelper = {
 			}
 			$(b).animate({scrollTop: d}, {duration: 300, easing: 'swing'});
 		});
+	},
+
+	/**
+	 * Encoding.jsライブラリを読み込む
+	 *  GSHelper.Encodingに読み込み時のjqXHRオブジェクトを設定し
+	 *  読み込み完了後Encodingオブジェクトを設定する。
+	 *  また戻り値としてはGSHelper.Encodingを返す。
+	 * @param  {Object} opt jqXHRコンフィグ
+	 * @return {Object} Encodingライブラリ読み込みのPromiseオブジェクト
+	 */
+	loadEncodingLib: function(opt){
+		var jqxhr = $.ajax(
+			chrome.extension.getURL('/lib/encoding.js'),
+			opt || {}
+		).done(function(res){
+			(function(){ eval(res); }).call(GSHelper);
+		});
+		return GSHelper.Encoding = jqxhr;
+	},
+
+	/**
+	 * 指定されたurlのファイルをブラウザで開く
+	 * @param  {String} fileUrl  ファイルURL(リクエストURL)
+	 * @param  {String} fileName ファイル名
+	 * @param  {Object} opt      オプション
+	 */
+	viewFileInBrowser: function(fileUrl, fileName, opt){
+		var opt = opt || {},
+			ctype, isTextFile, isOfficeDoc, isNonTarget, libReady;
+		//content-type取得
+		$.ajax(fileUrl, {
+			async: false,
+			type: 'HEAD'
+		}).done(function(data, status, jqXhr){
+			ctype = jqXhr.getResponseHeader('Content-Type');
+			//textファイル判定
+			isTextFile = !!ctype.match(/^text\//);
+			//officeドキュメント判定
+			isOfficeDoc = !!ctype.match(/(office|open)document|vnd\.ms\-/);
+			//対象外ファイル判定
+			isNonTarget = !!ctype.match(/octet\-stream|exe/);
+		});
+
+		if (isNonTarget) { alert('can not open this file'); return; }
+
+		//textファイルの場合は文字コード判定の為、Encodingライブラリを読み込む
+		if (isTextFile && !GSHelper.Encoding) {
+			libReady = GSHelper.loadEncodingLib();
+		} else {
+			libReady = true;
+		}
+
+		$.when(libReady).then(function(){
+			document.body.style.cursor = "wait";
+			//ファイルをバイナリで取得
+			var xhr = new XMLHttpRequest();
+			xhr.open('POST', fileUrl, true);
+			xhr.responseType = 'arraybuffer';
+			xhr.onload = function(evt){
+				if (this.status == 200) {
+					var bytes = new Uint8Array(this.response);
+					//textファイルの場合はファイルの中身の文字コードを判定し
+					//charsetを上書き
+					if (isTextFile) {
+						var charset = GSHelper.Encoding.detect(bytes);
+						ctype = ctype.replace(/(^.+charset=).+$/, '$1' + charset);
+					}
+
+					var blob = new Blob([bytes], { type: ctype }),
+						fixUrl = $.Deferred();
+
+					//officeドキュメントの場合、OfficeViewerで開けるように
+					//一旦ローカルにファイルを書き込む
+					//(OfficeViewerで開くには拡張子付きファイル名が必須)
+					if (isOfficeDoc) {
+						GSHelper.writeLocalFile(fileName, blob).then(function(file){
+							fixUrl.resolve(file.toURL());
+						});
+					} else {
+						fixUrl.resolve(URL.createObjectURL(blob));
+					}
+
+					fixUrl.then(function(url){
+						window.open(url, "_blank");
+					});
+				} else {
+					console.log('failed to open file');
+				}
+				document.body.style.cursor = "";
+			};
+			xhr.send();
+		});
+	},
+
+	/**
+	 * ローカルファイルシステムにファイルを書き込む
+	 * @param  {String} fileName ファイル名
+	 * @param  {Blob}   fileData ファイルデータ
+	 * @return {FileEntry}       作成したファイル(promiseオブジェクト)
+	 */
+	writeLocalFile: function(fileName, fileData){
+		var dfd = $.Deferred();
+		var requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+		requestFileSystem(
+			window.TEMPORARY,
+			5*1024*1024, //5M
+			function(fs){
+				fs.root.getFile(
+					fileName,
+					{ create: true, exclusive: false },
+					function(fileEntry){
+						fileEntry.createWriter(function(fileWriter){
+							fileWriter.onwriteend = function(e){
+								dfd.resolve(fileEntry);
+							};
+							//エラー
+							fileWriter.onerror = function(err){
+								console.log('failed to write file:' + err.toString());
+							};
+							fileWriter.write(fileData);
+						});
+					},
+					//エラー
+					function(err){
+						console.log('failed to get fileEntry error:' + err.code);
+					}
+				);
+			},
+			//エラー
+			function(err){
+				console.log('failed to get filesystem error:' + err.code);
+			}
+		);
+		return dfd.promise();
 	},
 
 	/**
@@ -491,7 +625,9 @@ var GSHelper = {
 		//初期化
 		init: function(){
 			var self = this;
-			this.addPubOption();
+			if (GSHelper.getGSVersion() < '4.2.1') {
+				this.addPubOption();
+			}
 			this.setCurrentPubSetting();
 
 			//OKボタン押下時のイベントリスナ追加
@@ -639,25 +775,29 @@ var GSHelper = {
 		//初期化
 		init: function(){
 			var self = this;
-			var $sortableColumnHeader = $('.td_type_file:has(a)')
-										.filter(function(){
-											return $(this).text() != '';
-										});
+			var $sortableColumnHeader =
+					$('.td_type_file:has(a)')
+					.filter(function(){
+						return $(this).text() != '';
+					});
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 
-				var defSort = localStorage[STORE_KEY.FILE_LIST_DEF_SORT_COL] || '';
-				var defOrder = localStorage[STORE_KEY.FILE_LIST_DEF_ORDER] || '';
-				//初期表示順が保存されていれば
-				if (defSort && defOrder) {
+				var defSort = localStorage[STORE_KEY.FILE_LIST_DEF_SORT_COL] || '',
+					defOrder = localStorage[STORE_KEY.FILE_LIST_DEF_ORDER] || '',
+					$form = $('form[name=fil040Form]'),
+					$sort = $form.find('[name=fil040SortKey]'),
+					$order = $form.find('[name=fil040OrderKey]');
+				//初期表示順が保存されていて、その内容が表示中のものと異なる場合
+				if (defSort && defOrder &&
+						(defSort != $sort.val() || defOrder != $order.val())) {
 					//表示順を保存されている内容に変更(初期表示変更)
-					var $form = $('form[name=fil040Form]');
-					$('[name=fil040SortKey]', $form).val(defSort);
-					$('[name=fil040OrderKey]', $form).val(defOrder);
-					$('[name=CMD]', $form).val('titleClick');
+					$form.find('[name=CMD]').val('titleClick');
+					$sort.val(defSort);
+					$order.val(defOrder);
 					$form.submit();
+					return;
 				}
-				return;
 			}
 			this.clearProcScope();
 
@@ -669,13 +809,87 @@ var GSHelper = {
 				}, true);
 			});
 
-			//ファイルドロップエリア作成
-			this.createDropZone();
+			//表示中ディレクトリのGS管理ID取得
 			this.curDirId = $('[name=selectDir]').val();
+			//ファイルドロップエリア作成
+			this.setupDropZone();
+			//インブラウザビューボタン作成
+			setTimeout(function(){
+				this.setupInBrowserViewBtn();
+			}.bind(this), 1);
 		},
 
-		//ファイルドロップエリア作成
-		createDropZone: function(){
+		/**
+		 * インブラウザビューボタン作成
+		 */
+		setupInBrowserViewBtn: function(){
+			var isOfficeViewerInstalled;
+			//OfficeViewerがインストールされているか調べる
+			try {
+				$.ajax({
+					async: false,
+					timeout: 1000,
+					type: 'HEAD',
+					//Chrome Office Viewer (Beta)
+					url: "chrome-extension://gbkeegbaiigmenfmjfclcdgdpimamgkj/views/qowt.html"
+				}).done(function(){
+					isOfficeViewerInstalled = true;
+				});
+			} catch (e) { /*ignore*/ };
+
+			var fileExtExp = 'txt|html?|xml|css|js|pdf|jpg|gif|png';
+			//OfficeViewerがインストールされている場合はofficeドキュメントも対象
+			if (isOfficeViewerInstalled) {
+				fileExtExp += '|docx?|xlsx?|pptx?|od[tsp]';
+			}
+
+			var $fileLinks = $('a[id^=fdrsid]').has('img[src$="page.gif"]'),
+				regfileExt = new RegExp('\\.(' + fileExtExp + ')', 'i');
+			//ボタン作成
+			$fileLinks.each(function(){
+				var $flink = $(this);
+				if (!$flink.text().match(regfileExt)) { return true; };
+				$('<span href="" class="open-in-browser" title="ブラウザで開く"></span>')
+				.insertAfter($flink);
+			});
+
+			$(document.body).on('click', '.open-in-browser',
+								this.clickInBrowserViewBtn.bind(this));
+
+			$(document.body).on({
+				mouseenter: function(){
+					$(this).find('.open-in-browser').css('display', 'inline-block');
+				},
+				mouseleave: function(){
+					$(this).find('.open-in-browser').css('display', '');
+				}
+			}, '.prj_td:nth-child(2)');
+		},
+
+		/**
+		 * インブラウザビューボタン押下時処理
+		 */
+		clickInBrowserViewBtn: function(evt){
+			var $btn = $(evt.target),
+				$form = $('form[name=fil040Form]'),
+				$flink = $btn.prev('a'),
+				fileId = $flink.attr('onclick')
+						.replace(/^.*fileDl\('fileDownload',\s*(\d+)\).*$/, '$1'),
+				fileName = $flink.text().trim(),
+				data = {
+					CMD: 'fileDownload',
+					fileSid: fileId
+				},
+				reqUrl = $form.attr('action') + '?' + $.param(data);
+
+			GSHelper.viewFileInBrowser(reqUrl, fileName);
+		},
+
+		/**
+		 * ファイルドロップエリア作成
+		 * @return {Object} ドロップエリアのjQueryオブジェクト
+		 */
+		setupDropZone: function(){
 			var self = this,
 				$t = $('.prj_tbl_base3'),
 				$desc = $('<p>ドロップしてファイルを追加</p>').css({
@@ -976,7 +1190,7 @@ var GSHelper = {
 		shortenReplyTitle: function(){
 			var $title = $('input[name=sml020Title]'),
 				titleText = $title.val(),
-				rePart, mainPart, count = 0, reAry, re;
+				rePart, mainPart, count = 0, reAry, re, i;
 
 			if (titleText.match(/^((?:Re\d*[：:])+)(.*)$/ig)) {
 				//件名の頭のRe:…部分

@@ -241,6 +241,48 @@ var GSHelper = {
 	},
 
 	/**
+	 * インブラウザビューボタン作成
+	 * @param  {Object}   fileLinks ファイルへのリンクHTMLエレメント or jQueryオブジェクト
+	 * @param  {Function} handler   ボタン押下時のハンドラ
+	 * @param  {Object}   opt       オプション
+	 */
+	setupInBrowserViewBtn: function(fileLinks, handler, opt){
+		var opt = $.extend({ disp: 'none' }, opt),
+			$fileLinks = $(fileLinks),
+			isOfficeViewerInstalled, fileExtExp, regfileExt;
+		//OfficeViewerがインストールされているか調べる
+		try {
+			$.ajax({
+				async: false,
+				timeout: 1000,
+				type: 'HEAD',
+				//Chrome Office Viewer (Beta)
+				url: "chrome-extension://gbkeegbaiigmenfmjfclcdgdpimamgkj/views/qowt.html"
+			}).done(function(){
+				isOfficeViewerInstalled = true;
+			});
+		} catch (e) { /*ignore*/ };
+
+		fileExtExp = 'txt|html?|xml|css|js|pdf|jpg|gif|png';
+		//OfficeViewerがインストールされている場合はofficeドキュメントも対象
+		if (isOfficeViewerInstalled) {
+			fileExtExp += '|docx?|xlsx?|pptx?|od[tsp]';
+		}
+
+		regfileExt = new RegExp('\\.(' + fileExtExp + ')', 'i');
+		//ボタン作成
+		$fileLinks.each(function(){
+			var $flink = $(this);
+			if (!$flink.text().match(regfileExt)) { return true; };
+			$('<span href="" class="open-in-browser" title="ブラウザで開く"></span>')
+			.css({ display: opt.disp })
+			.insertAfter($flink);
+		});
+
+		$(document.body).on('click', '.open-in-browser', handler);
+	},
+
+	/**
 	 * 指定されたurlのファイルをブラウザで開く
 	 * @param  {String} fileUrl  ファイルURL(リクエストURL)
 	 * @param  {String} fileName ファイル名
@@ -298,6 +340,17 @@ var GSHelper = {
 						GSHelper.writeLocalFile(fileName, blob).then(function(file){
 							fixUrl.resolve(file.toURL());
 						});
+					//URL.createObjectURLでは文字コードを明示的に指定できないためか
+					//稀にChromeが適切な文字コードで開いてくれない場合がある。
+					//DataURLなら明示的に(blob:text/plain;charset=sjis;...)指定されるので
+					//textファイルの場合はこちらのほうがいかも。
+					//} else if(isTextFile) {
+					//	var reader = new FileReader();
+					//	reader.onload = function(event){
+					//		fixUrl.resolve(event.target.result);
+					//		var url = event.target.result;
+					//	};
+					//	reader.readAsDataURL(blob);
 					} else {
 						fixUrl.resolve(URL.createObjectURL(blob));
 					}
@@ -418,6 +471,56 @@ var GSHelper = {
 				evt.preventDefault();
 				GSHelper.sch040.presetDefaultPublic($(this).closest('form'));
 			});
+		}
+	},
+
+	/**
+	 * bulletin/bbs080.doマネージャ
+	 * (掲示板 投稿一覧画面)
+	 */
+	bbs080: {
+		scope: 'bbs080',
+		//初期化
+		init: function(){
+			var self = this;
+
+			//インブラウザビューボタン作成
+			setTimeout(function(){
+				GSHelper.setupInBrowserViewBtn(
+					$('.menu_bun').find('a'),
+					this.clickInBrowserViewBtn.bind(this)
+				);
+			}.bind(this), 1);
+			//インブラウザビューボタン表示エフェクト
+			$(document.body).on({
+				mouseenter: function(){
+					$(this).find('.open-in-browser').css('display', 'inline-block');
+				},
+				mouseleave: function(){
+					$(this).find('.open-in-browser').css('display', '');
+				}
+			}, '#selectionSearchArea2 td:nth-child(2):has(img[src$="file_icon.gif"])');
+		},
+
+		/**
+		 * インブラウザビューボタン押下時処理
+		 */
+		clickInBrowserViewBtn: function(evt){
+			var $btn = $(evt.target),
+				$form = $('form[name=bbs080Form]'),
+				$flink = $btn.prev('a'),
+				idList = $flink.attr('href').match(/\d+/g),
+				fileName = $flink.text().trim().replace(/\(.+\)$/, ''),
+				data = {
+					CMD: 'fileDownload',
+					bbs010forumSid: idList[0],
+					threadSid: idList[1],
+					bbs080binSid: idList[2],
+					bbs080writeSid: idList[3]
+				},
+				reqUrl = $form.attr('action') + '?' + $.param(data);
+
+			GSHelper.viewFileInBrowser(reqUrl, fileName);
 		}
 	},
 
@@ -815,47 +918,12 @@ var GSHelper = {
 			this.setupDropZone();
 			//インブラウザビューボタン作成
 			setTimeout(function(){
-				this.setupInBrowserViewBtn();
+				GSHelper.setupInBrowserViewBtn(
+					$('a[id^=fdrsid]').has('img[src$="page.gif"]'),
+					this.clickInBrowserViewBtn.bind(this)
+				);
 			}.bind(this), 1);
-		},
-
-		/**
-		 * インブラウザビューボタン作成
-		 */
-		setupInBrowserViewBtn: function(){
-			var isOfficeViewerInstalled;
-			//OfficeViewerがインストールされているか調べる
-			try {
-				$.ajax({
-					async: false,
-					timeout: 1000,
-					type: 'HEAD',
-					//Chrome Office Viewer (Beta)
-					url: "chrome-extension://gbkeegbaiigmenfmjfclcdgdpimamgkj/views/qowt.html"
-				}).done(function(){
-					isOfficeViewerInstalled = true;
-				});
-			} catch (e) { /*ignore*/ };
-
-			var fileExtExp = 'txt|html?|xml|css|js|pdf|jpg|gif|png';
-			//OfficeViewerがインストールされている場合はofficeドキュメントも対象
-			if (isOfficeViewerInstalled) {
-				fileExtExp += '|docx?|xlsx?|pptx?|od[tsp]';
-			}
-
-			var $fileLinks = $('a[id^=fdrsid]').has('img[src$="page.gif"]'),
-				regfileExt = new RegExp('\\.(' + fileExtExp + ')', 'i');
-			//ボタン作成
-			$fileLinks.each(function(){
-				var $flink = $(this);
-				if (!$flink.text().match(regfileExt)) { return true; };
-				$('<span href="" class="open-in-browser" title="ブラウザで開く"></span>')
-				.insertAfter($flink);
-			});
-
-			$(document.body).on('click', '.open-in-browser',
-								this.clickInBrowserViewBtn.bind(this));
-
+			//インブラウザビューボタン表示エフェクト
 			$(document.body).on({
 				mouseenter: function(){
 					$(this).find('.open-in-browser').css('display', 'inline-block');

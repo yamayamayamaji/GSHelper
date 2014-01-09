@@ -242,6 +242,7 @@ var GSHelper = {
 
 	/**
 	 * インブラウザビューボタン作成
+	 * (デフォルトの初期状態は非表示)
 	 * @param  {Object}   fileLinks ファイルへのリンクHTMLエレメント or jQueryオブジェクト
 	 * @param  {Function} handler   ボタン押下時のハンドラ
 	 * @param  {Object}   opt       オプション
@@ -274,7 +275,7 @@ var GSHelper = {
 		$fileLinks.each(function(){
 			var $flink = $(this);
 			if (!$flink.text().match(regfileExt)) { return true; };
-			$('<span href="" class="open-in-browser" title="ブラウザで開く"></span>')
+			$('<span class="open-in-browser" title="ブラウザで開く"></span>')
 			.css({ display: opt.disp })
 			.insertAfter($flink);
 		});
@@ -479,10 +480,9 @@ var GSHelper = {
 	 * (掲示板 投稿一覧画面)
 	 */
 	bbs080: {
-		scope: 'bbs080',
 		//初期化
 		init: function(){
-			var self = this;
+			//var self = this;
 
 			//インブラウザビューボタン作成
 			setTimeout(function(){
@@ -929,7 +929,7 @@ var GSHelper = {
 					$(this).find('.open-in-browser').css('display', 'inline-block');
 				},
 				mouseleave: function(){
-					$(this).find('.open-in-browser').css('display', '');
+					$(this).find('.open-in-browser').css('display', 'none');
 				}
 			}, '.prj_td:nth-child(2)');
 		},
@@ -1275,6 +1275,53 @@ var GSHelper = {
 				}
 				$title.val('Re' + (count > 1 ? count : '') + ':' + mainPart);
 			}
+		}
+	},
+
+	/**
+	 * smail/sml030.doマネージャ
+	 * (ショートメール 内容確認画面)
+	 */
+	sml030: {
+		//初期化
+		init: function(){
+			var self = this;
+
+			//インブラウザビューボタン作成
+			setTimeout(function(){
+				GSHelper.setupInBrowserViewBtn(
+					$('a').filter('[onclick*=fileLinkClick]'),
+					this.clickInBrowserViewBtn.bind(this)
+				);
+			}.bind(this), 1);
+			//インブラウザビューボタン表示エフェクト
+			$(document.body).on({
+				mouseenter: function(){
+					$(this).find('.open-in-browser').css('display', 'inline-block');
+				},
+				mouseleave: function(){
+					$(this).find('.open-in-browser').css('display', '');
+				}
+			}, 'td.td_wt:has(a[onclick*=fileLinkClick])');
+		},
+
+		/**
+		 * インブラウザビューボタン押下時処理
+		 */
+		clickInBrowserViewBtn: function(evt){
+			var $btn = $(evt.target),
+				$form = $('form[name=sml030Form]'),
+				$flink = $btn.prev('a'),
+				fileId = $flink.attr('onclick')
+						.replace(/^.*fileLinkClick\(\s*(\d+)\).*$/, '$1'),
+				fileName = $flink.text().trim().replace(/\([0-9.]+[A-Z]{2}\)$/, ''),
+				data = {
+					CMD: 'downLoad',
+					sml030binSid: fileId
+				},
+				reqUrl = $form.attr('action') + '?' + $.param(data);
+
+			GSHelper.viewFileInBrowser(reqUrl, fileName);
 		}
 	},
 

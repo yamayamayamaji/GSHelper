@@ -1,4 +1,4 @@
-無料グループウェア GroupSession (http://www.gs.sjts.co.jp/ )をより便利にすChrome Extension です。  
+無料グループウェア GroupSession (http://www.gs.sjts.co.jp/ )をより便利にするChrome Extension です。  
   
 #### 機能：  
 1. スケジュールのデフォルト表示メンバーが設定できるようになります。  

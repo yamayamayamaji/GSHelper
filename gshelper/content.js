@@ -344,7 +344,7 @@ var GSHelper = {
 					//URL.createObjectURLでは文字コードを明示的に指定できないためか
 					//稀にChromeが適切な文字コードで開いてくれない場合がある。
 					//DataURLなら明示的に(blob:text/plain;charset=sjis;...)指定されるので
-					//textファイルの場合はこちらのほうがいかも。
+					//textファイルの場合はこちらのほうがいいかも。
 					//} else if(isTextFile) {
 					//	var reader = new FileReader();
 					//	reader.onload = function(event){
@@ -569,6 +569,9 @@ var GSHelper = {
 			if (sessionStorage[STORE_KEY.PROC_SCOPE] != this.scope) {
 				this.setProcScope();
 				//選択内容を保存されている内容に変更(初期表示変更)
+				$('select[name=sch010DspGpSid]')
+					.val(localStorage[STORE_KEY.SCH_DEF_GROUP]);
+
 				$('select[name=sch020SelectUsrSid]')
 					.val(localStorage[STORE_KEY.MONTH_SCH_DEF_MEMBER])[0]
 					.dispatchEvent(GSHelper.eventMgr.change);

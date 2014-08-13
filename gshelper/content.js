@@ -1316,11 +1316,13 @@ var GSHelper = {
 				$form = $('form[name=sml030Form]'),
 				$flink = $btn.prev('a'),
 				fileId = $flink.attr('onclick')
-						.replace(/^.*fileLinkClick\(\s*(\d+)\).*$/, '$1'),
+						//.replace(/^.*fileLinkClick\(\s*(\d+)\).*$/, '$1'),
+						.replace(/^.*fileLinkClick\(.*?(\d+)\).*$/, '$1'),
 				fileName = $flink.text().trim().replace(/\([0-9.]+[A-Z]{2}\)$/, ''),
 				data = {
 					CMD: 'downLoad',
-					sml030binSid: fileId
+					sml030binSid: fileId,
+					sml010SelectedSid: $('input[name=sml010SelectedSid]').val()
 				},
 				reqUrl = $form.attr('action') + '?' + $.param(data);
 

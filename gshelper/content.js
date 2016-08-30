@@ -1065,7 +1065,7 @@ var GSHelper = {
                 "CMD": 'fileUpload',
                 "cmn110fileLimit": '0',
                 "cmn110pluginId": 'file',
-                "cmn110uploadType": 0
+                "cmn110uploadType": '0'
             };
             var fd = new FormData();
             $.each(data, function(k, v){
@@ -1093,10 +1093,9 @@ var GSHelper = {
                 '../file/fil080.do',
                 {
                     "CMD": 'fil080add',
-                    "fil070DirSid": '',
-                    "fil070ParentDirSid": this.curDirId,
-                    "fil080PluralKbn": '1',
-                    "fil080SvPluralKbn": '1'
+                    "fil010SelectCabinet": $('input[name="fil010SelectCabinet"]').val(),
+                    "fil010SelectDirSid": $('input[name="fil010SelectDirSid"]').val(),
+                    "fil070ParentDirSid": this.curDirId
                 }
             );
         },
@@ -1129,11 +1128,9 @@ var GSHelper = {
                 {
                     "org.apache.struts.taglib.html.TOKEN": token,
                     "CMD": 'fil080knok',
-                    "fil070DirSid": '',
-                    "fil070ParentDirSid": this.curDirId,
-                    "fil080Mode": '0',
-                    "fil080Biko": '',
-                    "fil080UpCmt": ''
+                    "fil010SelectCabinet": $('input[name="fil010SelectCabinet"]').val(),
+                    "fil010SelectDirSid": $('input[name="fil010SelectDirSid"]').val(),
+                    "fil070ParentDirSid": this.curDirId
                 }
             );
         },

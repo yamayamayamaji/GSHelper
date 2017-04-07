@@ -357,7 +357,10 @@ var GSHelper = {
                     //  };
                     //  reader.readAsDataURL(blob);
                     } else {
-                        fixUrl.resolve(URL.createObjectURL(blob));
+                        // fixUrl.resolve(URL.createObjectURL(blob));
+                        GSHelper.writeLocalFile(fileName, blob).then(function(file){
+                            fixUrl.resolve(file.toURL());
+                        });
                     }
 
                     fixUrl.then(function(url){

@@ -349,13 +349,13 @@ var GSHelper = {
                     //稀にChromeが適切な文字コードで開いてくれない場合がある。
                     //DataURLなら明示的に(blob:text/plain;charset=sjis;...)指定されるので
                     //textファイルの場合はこちらのほうがいいかも。
-                    //} else if(isTextFile) {
-                    //  var reader = new FileReader();
-                    //  reader.onload = function(event){
-                    //      fixUrl.resolve(event.target.result);
-                    //      var url = event.target.result;
-                    //  };
-                    //  reader.readAsDataURL(blob);
+                    } else if(isTextFile) {
+                     var reader = new FileReader();
+                     reader.onload = function(event){
+                         fixUrl.resolve(event.target.result);
+                         var url = event.target.result;
+                     };
+                     reader.readAsDataURL(blob);
                     } else {
                         // fixUrl.resolve(URL.createObjectURL(blob));
                         GSHelper.writeLocalFile(fileName, blob).then(function(file){
@@ -364,12 +364,19 @@ var GSHelper = {
                     }
 
                     fixUrl.then(function(url){
-                        window.open(url, "_blank");
+                        // window.open(url, "_blank");
+                        var win = window.open();
+                        win.document.write(`<iframe src="${url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                        // officeドキュメントの場合、OfficeViewerが更に別タブで開かれるので
+                        // ここでopenしたタブが空のまま残らないように閉じておく
+                        if (isOfficeDoc) {
+                            win.close();
+                        }
                     });
                 } else {
                     console.log('failed to open file');
                 }
-                document.body.style.cursor = "";
+                document.body.style.cursor = '';
             };
             xhr.send();
         });
